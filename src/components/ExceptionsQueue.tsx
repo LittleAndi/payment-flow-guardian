@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Search, UserPlus, MessageSquare, CheckCircle, AlertCircle, Filter, X, ChevronDown } from "lucide-react";
+import { Search, UserPlus, MessageSquare, CheckCircle, AlertCircle, Filter, X, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { mockExceptions } from "@/lib/mockData";
 import { useState } from "react";
 
@@ -22,6 +22,10 @@ const ExceptionsQueue = () => {
   const [minAge, setMinAge] = useState("");
   const [maxAge, setMaxAge] = useState("");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
+  
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<"orderReference" | "store" | "amount" | "age" | "assignedTo" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const filteredExceptions = mockExceptions.filter((exception) => {
     const matchesSearch = exception.orderReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -56,6 +60,64 @@ const ExceptionsQueue = () => {
   };
 
   const uniqueStores = Array.from(new Set(mockExceptions.map(e => e.store)));
+
+  const handleSort = (column: typeof sortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: typeof sortColumn) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="ml-2 h-4 w-4" />;
+    }
+    return sortDirection === "asc" ? 
+      <ArrowUp className="ml-2 h-4 w-4" /> : 
+      <ArrowDown className="ml-2 h-4 w-4" />;
+  };
+
+  const sortedExceptions = [...filteredExceptions].sort((a, b) => {
+    if (!sortColumn) return 0;
+    
+    let aValue: string | number = "";
+    let bValue: string | number = "";
+    
+    switch (sortColumn) {
+      case "orderReference":
+        aValue = a.orderReference;
+        bValue = b.orderReference;
+        break;
+      case "store":
+        aValue = a.store;
+        bValue = b.store;
+        break;
+      case "amount":
+        aValue = a.amount;
+        bValue = b.amount;
+        break;
+      case "age":
+        aValue = a.ageDays;
+        bValue = b.ageDays;
+        break;
+      case "assignedTo":
+        aValue = a.assignedTo || "";
+        bValue = b.assignedTo || "";
+        break;
+    }
+    
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      return sortDirection === "asc" 
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    }
+    
+    return sortDirection === "asc" 
+      ? (aValue as number) - (bValue as number)
+      : (bValue as number) - (aValue as number);
+  });
 
   const getReasonBadge = (reason: string) => {
     const variants: Record<string, { color: string; label: string }> = {
@@ -234,17 +296,62 @@ const ExceptionsQueue = () => {
                   <TableHead className="w-12">
                     <input type="checkbox" className="rounded border-input" />
                   </TableHead>
-                  <TableHead>Order Reference</TableHead>
-                  <TableHead>Store</TableHead>
-                  <TableHead>Amount</TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      className="h-auto p-0 font-medium hover:bg-transparent"
+                      onClick={() => handleSort("orderReference")}
+                    >
+                      Order Reference
+                      {getSortIcon("orderReference")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      className="h-auto p-0 font-medium hover:bg-transparent"
+                      onClick={() => handleSort("store")}
+                    >
+                      Store
+                      {getSortIcon("store")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      className="h-auto p-0 font-medium hover:bg-transparent"
+                      onClick={() => handleSort("amount")}
+                    >
+                      Amount
+                      {getSortIcon("amount")}
+                    </Button>
+                  </TableHead>
                   <TableHead>Reason</TableHead>
-                  <TableHead>Age</TableHead>
-                  <TableHead>Assigned To</TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      className="h-auto p-0 font-medium hover:bg-transparent"
+                      onClick={() => handleSort("age")}
+                    >
+                      Age
+                      {getSortIcon("age")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      className="h-auto p-0 font-medium hover:bg-transparent"
+                      onClick={() => handleSort("assignedTo")}
+                    >
+                      Assigned To
+                      {getSortIcon("assignedTo")}
+                    </Button>
+                  </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredExceptions.map((exception) => (
+                {sortedExceptions.map((exception) => (
                   <TableRow key={exception.id}>
                     <TableCell>
                       <input
