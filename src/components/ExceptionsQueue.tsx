@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, UserPlus, MessageSquare, CheckCircle, AlertCircle } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Search, UserPlus, MessageSquare, CheckCircle, AlertCircle, Filter, X, ChevronDown } from "lucide-react";
 import { mockExceptions } from "@/lib/mockData";
 import { useState } from "react";
 
@@ -12,13 +13,49 @@ const ExceptionsQueue = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [reasonFilter, setReasonFilter] = useState("all");
   const [selectedExceptions, setSelectedExceptions] = useState<string[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
+  // Advanced filters
+  const [storeFilter, setStoreFilter] = useState("all");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [minAge, setMinAge] = useState("");
+  const [maxAge, setMaxAge] = useState("");
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
 
   const filteredExceptions = mockExceptions.filter((exception) => {
     const matchesSearch = exception.orderReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
       exception.store.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesReason = reasonFilter === "all" || exception.reasonCode === reasonFilter;
-    return matchesSearch && matchesReason;
+    const matchesStore = storeFilter === "all" || exception.store === storeFilter;
+    const matchesMinAmount = !minAmount || exception.amount >= parseFloat(minAmount);
+    const matchesMaxAmount = !maxAmount || exception.amount <= parseFloat(maxAmount);
+    const matchesMinAge = !minAge || exception.ageDays >= parseInt(minAge);
+    const matchesMaxAge = !maxAge || exception.ageDays <= parseInt(maxAge);
+    const matchesAssignment = assignmentFilter === "all" || 
+      (assignmentFilter === "assigned" && exception.assignedTo) ||
+      (assignmentFilter === "unassigned" && !exception.assignedTo);
+    
+    return matchesSearch && matchesReason && matchesStore && matchesMinAmount && 
+           matchesMaxAmount && matchesMinAge && matchesMaxAge && matchesAssignment;
   });
+
+  const hasActiveFilters = reasonFilter !== "all" || storeFilter !== "all" || 
+    minAmount !== "" || maxAmount !== "" || minAge !== "" || maxAge !== "" || 
+    assignmentFilter !== "all";
+
+  const clearFilters = () => {
+    setReasonFilter("all");
+    setStoreFilter("all");
+    setMinAmount("");
+    setMaxAmount("");
+    setMinAge("");
+    setMaxAge("");
+    setAssignmentFilter("all");
+    setSearchTerm("");
+  };
+
+  const uniqueStores = Array.from(new Set(mockExceptions.map(e => e.store)));
 
   const getReasonBadge = (reason: string) => {
     const variants: Record<string, { color: string; label: string }> = {
@@ -45,34 +82,149 @@ const ExceptionsQueue = () => {
           <CardDescription>Review and resolve payment reconciliation exceptions</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-4 mb-6 md:flex-row">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search by order reference or store..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by order reference or store..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
+              <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Advanced Filters
+                    {hasActiveFilters && (
+                      <Badge variant="secondary" className="ml-1 px-1.5">
+                        {[reasonFilter !== "all", storeFilter !== "all", minAmount, maxAmount, minAge, maxAge, assignmentFilter !== "all"].filter(Boolean).length}
+                      </Badge>
+                    )}
+                    <ChevronDown className={`h-4 w-4 transition-transform ${isFilterOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="absolute z-50 mt-2 w-full md:w-auto">
+                  <Card className="shadow-lg bg-background">
+                    <CardContent className="p-4">
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Reason</label>
+                          <Select value={reasonFilter} onValueChange={setReasonFilter}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Reasons" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background">
+                              <SelectItem value="all">All Reasons</SelectItem>
+                              <SelectItem value="AMOUNT_MISMATCH">Amount Mismatch</SelectItem>
+                              <SelectItem value="MISSING_CAPTURE">Missing Capture</SelectItem>
+                              <SelectItem value="DUPLICATE">Duplicate</SelectItem>
+                              <SelectItem value="PAYOUT_MISSING">Payout Missing</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Store</label>
+                          <Select value={storeFilter} onValueChange={setStoreFilter}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Stores" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background">
+                              <SelectItem value="all">All Stores</SelectItem>
+                              {uniqueStores.map(store => (
+                                <SelectItem key={store} value={store}>{store}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Assignment</label>
+                          <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background">
+                              <SelectItem value="all">All</SelectItem>
+                              <SelectItem value="assigned">Assigned</SelectItem>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Min Amount (£)</label>
+                          <Input
+                            type="number"
+                            placeholder="0.00"
+                            value={minAmount}
+                            onChange={(e) => setMinAmount(e.target.value)}
+                            step="0.01"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Max Amount (£)</label>
+                          <Input
+                            type="number"
+                            placeholder="999.99"
+                            value={maxAmount}
+                            onChange={(e) => setMaxAmount(e.target.value)}
+                            step="0.01"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Min Age (days)</label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={minAge}
+                            onChange={(e) => setMinAge(e.target.value)}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Max Age (days)</label>
+                          <Input
+                            type="number"
+                            placeholder="30"
+                            value={maxAge}
+                            onChange={(e) => setMaxAge(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      
+                      {hasActiveFilters && (
+                        <div className="mt-4 flex justify-end">
+                          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2">
+                            <X className="h-4 w-4" />
+                            Clear All Filters
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </CollapsibleContent>
+              </Collapsible>
+              
+              <Button variant="outline" className="gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Bulk Resolve ({selectedExceptions.length})
+              </Button>
             </div>
-            <Select value={reasonFilter} onValueChange={setReasonFilter}>
-              <SelectTrigger className="w-full md:w-[200px]">
-                <SelectValue placeholder="Filter by reason" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Reasons</SelectItem>
-                <SelectItem value="AMOUNT_MISMATCH">Amount Mismatch</SelectItem>
-                <SelectItem value="MISSING_CAPTURE">Missing Capture</SelectItem>
-                <SelectItem value="DUPLICATE">Duplicate</SelectItem>
-                <SelectItem value="PAYOUT_MISSING">Payout Missing</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" className="gap-2">
-              <CheckCircle className="h-4 w-4" />
-              Bulk Resolve ({selectedExceptions.length})
-            </Button>
+            
+            {hasActiveFilters && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Filter className="h-4 w-4" />
+                <span>Showing {filteredExceptions.length} of {mockExceptions.length} exceptions</span>
+              </div>
+            )}
           </div>
 
           <div className="rounded-md border">
