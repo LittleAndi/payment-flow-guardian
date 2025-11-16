@@ -1,26 +1,35 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import CaptureMonitor from "@/components/CaptureMonitor";
 import PayoutUpload from "@/components/PayoutUpload";
 import GLUpload from "@/components/GLUpload";
 import ExceptionsQueue from "@/components/ExceptionsQueue";
-import { DollarSign } from "lucide-react";
+import { DollarSign, List } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("capture");
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-muted">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <DollarSign className="h-6 w-6 text-primary-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+                <DollarSign className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Payment Reconciliation</h1>
+                <p className="text-sm text-muted-foreground">Capture, Payout & GL Management</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Payment Reconciliation</h1>
-              <p className="text-sm text-muted-foreground">Capture, Payout & GL Management</p>
-            </div>
+            <Button variant="outline" onClick={() => navigate("/captured-transactions")}>
+              <List className="h-4 w-4 mr-2" />
+              View All Transactions
+            </Button>
           </div>
         </div>
       </header>
